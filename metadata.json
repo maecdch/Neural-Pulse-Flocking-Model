@@ -1,0 +1,8 @@
+{
+  "name": "神经脉冲群鸟模型",
+  "description": "受椋鸟群启发的3D粒子模拟，支持手势追踪和音频感应交互。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
