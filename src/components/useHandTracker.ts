@@ -5,8 +5,9 @@ export type HandState = {
   x: number; // Normalized 0-1
   y: number; // Normalized 0-1
   z: number; // Depth
-  gesture: 'open' | 'fist' | 'pinch' | 'none';
+  gesture: 'open' | 'fist' | 'pinch' | 'point' | 'peace' | 'none';
   velocity: { x: number; y: number; z: number };
+  direction: { x: number; y: number; z: number }; // Pointing direction
 };
 
 export function useHandTracker(enabled: boolean = true) {
@@ -103,6 +104,14 @@ export function useHandTracker(enabled: boolean = true) {
               if (isPinch) gesture = 'pinch';
               else if (openCount >= 3) gesture = 'open';
               else if (openCount === 0) gesture = 'fist';
+              else if (indexOpen && middleOpen && !ringOpen && !pinkyOpen) gesture = 'peace';
+              else if (indexOpen && !middleOpen && !ringOpen && !pinkyOpen) gesture = 'point';
+              
+              // Direction from palm to index tip
+              const dirX = indexTip.x - palmCenter.x;
+              const dirY = indexTip.y - palmCenter.y;
+              const dirZ = indexTip.z - palmCenter.z;
+              const dirLength = Math.hypot(dirX, dirY, dirZ) || 1;
               
               // Velocity calculation
               let vx = 0, vy = 0, vz = 0;
@@ -124,7 +133,8 @@ export function useHandTracker(enabled: boolean = true) {
                 y: palmCenter.y,
                 z: palmCenter.z,
                 gesture,
-                velocity: { x: vx, y: vy, z: vz }
+                velocity: { x: vx, y: vy, z: vz },
+                direction: { x: dirX / dirLength, y: dirY / dirLength, z: dirZ / dirLength }
               };
             });
             
