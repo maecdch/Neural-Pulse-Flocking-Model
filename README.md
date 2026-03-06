@@ -1,20 +1,65 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🦅 神经脉冲群鸟模型 (Neural Murmuration)
 
-# Run and deploy your AI Studio app
+一个受自然界椋鸟群（Starling Murmuration）启发的交互式 3D 粒子模拟系统。通过计算机视觉和音频分析技术，让您能够用手势和声音指挥成千上万的粒子，体验仿佛置身于自然奇观中的沉浸式互动。
 
-This contains everything you need to run your app locally.
+![Banner](https://picsum.photos/seed/murmuration/800/400)
 
-View your app in AI Studio: https://ai.studio/apps/403aa0ca-cb79-4fec-820b-d865a57acff8
+## ✨ 主要功能
 
-## Run Locally
+### 🖐️ 手势交互
+利用先进的手势追踪技术，您可以像指挥家一样控制鸟群：
 
-**Prerequisites:**  Node.js
+- **✋ 张开手掌 (Disperse)**：产生强大的斥力，瞬间驱散聚集的鸟群。
+- **✊ 握紧拳头 (Vortex)**：制造引力漩涡，将粒子卷入并形成黑洞般的旋转效果。
+- **👌 捏合手指 (Attract)**：精准吸引，让鸟群汇聚在您的指尖。
+- **☝️ 食指指引 (Guide)**：化身为风向标，引导鸟群跟随您的手指方向飞行。
+- **✌️ 胜利手势 (Split)**：分群盘旋，让鸟群分裂成两个互相环绕的轨道。
 
+### 🎵 音频响应
+系统内置音频分析引擎，粒子会随着环境声音或音乐的节奏律动：
+- **速度响应**：声音越大，鸟群飞行速度越快。
+- **色彩变换**：音量的变化会实时映射到粒子的颜色上，创造视听同步的体验。
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 🧠 智能群体行为 (Boids)
+基于经典的 Boids 算法（Craig Reynolds），模拟真实的生物群体行为：
+- **凝聚 (Cohesion)**：粒子倾向于向群体中心靠拢。
+- **对齐 (Alignment)**：粒子会跟随周围伙伴的飞行方向。
+- **分离 (Separation)**：粒子之间保持适当距离，避免碰撞。
+
+### 📷 可定制界面
+- **实时预览**：内置可缩放、可拖拽的摄像头预览窗口。
+- **沉浸式渲染**：基于 WebGL 的高性能 3D 渲染，支持光影效果和环境反射。
+
+## 🛠️ 技术栈
+
+- **前端框架**: React 18 + Vite
+- **3D 引擎**: Three.js / React Three Fiber
+- **视觉算法**: MediaPipe Hands
+- **音频处理**: Web Audio API
+- **样式**: Tailwind CSS
+- **图标**: Lucide React
+
+## 📂 项目结构
+
+```
+src/
+├── components/
+│   ├── Murmuration.tsx     # 核心粒子系统 (Boids 算法实现)
+│   ├── useHandTracker.ts   # MediaPipe 手势识别逻辑
+│   └── useAudioAnalyzer.ts # 音频频谱分析
+├── App.tsx                 # 主应用入口与 UI 布局
+└── ...
+```
+
+## 🚀 快速开始
+
+1. **授权设备**：允许浏览器访问您的**摄像头**和**麦克风**权限（用于手势和音频交互）。
+2. **等待初始化**：模型加载可能需要几秒钟，请耐心等待直到看到粒子出现。
+3. **开始互动**：
+   - 站在摄像头前（约 0.5 - 1.5 米），确保手部清晰可见。
+   - 尝试做出**张开手掌**或**握拳**等手势，观察鸟群的动态变化。
+   - 播放音乐或发出声音，看着粒子随声浪起舞。
+
+---
+
+*灵感来源：自然界中令人叹为观止的椋鸟群飞现象 (Starling Murmuration)，以及复杂系统中的涌现行为。*
