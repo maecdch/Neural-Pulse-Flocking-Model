@@ -1,18 +1,21 @@
-import React, { Suspense, useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
 import { useHandTracker } from './components/useHandTracker';
 import { useAudioAnalyzer } from './components/useAudioAnalyzer';
 import { Murmuration } from './components/Murmuration';
-import { Activity, Mic, Video, AlertCircle, Play, Maximize2, Minimize2 } from 'lucide-react';
+import { Activity, Mic, Video, AlertCircle, Play, Maximize2, Minimize2, Settings, Camera, Check, MoveDiagonal } from 'lucide-react';
 
 export default function App() {
   const [isStarted, setIsStarted] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(true);
+  const [cameraSize, setCameraSize] = useState({ width: 320, height: 240 });
   const cameraContainerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isResizingRef = useRef(false);
   
-  const { isReady: isHandReady, error: handError, handsRef, videoRef } = useHandTracker(isStarted);
+  const { isReady: isHandReady, error: handError, handsRef, videoRef } = useHandTracker(isStarted, canvasRef);
   const { isReady: isAudioReady, error: audioError, volumeRef } = useAudioAnalyzer(isStarted);
 
   useEffect(() => {
@@ -29,20 +32,59 @@ export default function App() {
 
   const handleStart = async () => {
     try {
+      setPermissionError(null);
+      
+      // Request permissions
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
         audio: true 
       });
       
+      // Stop tracks to release device
       stream.getTracks().forEach(track => track.stop());
       
-      setPermissionError(null);
+      // Small delay to ensure cleanup
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       setIsStarted(true);
     } catch (err: any) {
       console.error('Permission request failed:', err);
       setPermissionError(err.message || 'Permission denied');
+      setIsStarted(false);
     }
   };
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    isResizingRef.current = true;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      
+      // Calculate new width based on mouse position relative to right edge of screen
+      // Since container is bottom-6 right-6 (24px margin)
+      const rightMargin = 24;
+      const newWidth = window.innerWidth - e.clientX - rightMargin;
+      
+      // Maintain 4:3 aspect ratio
+      const newHeight = newWidth * 0.75;
+      
+      // Clamp values (min 160px, max 800px)
+      if (newWidth >= 160 && newWidth <= 800) {
+        setCameraSize({ width: newWidth, height: newHeight });
+      }
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, []);
 
   const activeError = permissionError || handError || audioError;
 
@@ -72,7 +114,7 @@ export default function App() {
 
       {/* UI Overlay */}
       <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none flex justify-between items-start">
-        <div>
+        <div className="pointer-events-auto">
           <h1 className="text-3xl font-bold tracking-tighter text-white drop-shadow-md">
             神经脉冲群鸟模型
           </h1>
@@ -86,8 +128,10 @@ export default function App() {
           </p>
         </div>
 
-        {/* Status Indicators */}
-        <div className="flex flex-col gap-3 items-end">
+        {/* Status Indicators & Settings */}
+        <div className="flex flex-col gap-3 items-end pointer-events-auto">
+          <SettingsPanel isStarted={isStarted} onStart={handleStart} permissionError={permissionError} />
+          
           <StatusBadge 
             icon={<Video size={16} />} 
             label="手势追踪" 
@@ -111,19 +155,43 @@ export default function App() {
       
       {/* Camera Preview */}
       {isStarted && isHandReady && (
-        <div className={`absolute bottom-6 right-6 z-20 transition-all duration-300 ${showCamera ? 'w-48 h-36 opacity-100' : 'w-10 h-10 opacity-50 hover:opacity-100'}`}>
+        <div 
+          className={`absolute bottom-6 right-6 z-20 transition-all duration-75 ease-out ${!showCamera ? 'opacity-50 hover:opacity-100' : 'opacity-100'}`}
+          style={{
+            width: showCamera ? cameraSize.width : 40,
+            height: showCamera ? cameraSize.height : 40,
+          }}
+        >
           <div className="relative w-full h-full bg-zinc-900 rounded-xl border border-zinc-800 shadow-2xl overflow-hidden group">
             <div ref={cameraContainerRef} className={`w-full h-full ${showCamera ? 'block' : 'hidden'}`} />
+            <canvas 
+              ref={canvasRef} 
+              width={640} 
+              height={480} 
+              className={`absolute top-0 left-0 w-full h-full pointer-events-none ${showCamera ? 'block' : 'hidden'}`} 
+            />
             
+            {/* Resize Handle */}
+            {showCamera && (
+              <div 
+                className="absolute top-0 left-0 p-2 cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-40 text-white/70 hover:text-white"
+                onMouseDown={startResizing}
+                title="拖拽调整大小"
+              >
+                <MoveDiagonal size={20} className="rotate-90" />
+              </div>
+            )}
+
             <button 
               onClick={() => setShowCamera(!showCamera)}
-              className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur-md rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
+              className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur-md rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto z-30"
+              title={showCamera ? "最小化" : "展开"}
             >
               {showCamera ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
             
             {!showCamera && (
-              <div className="w-full h-full flex items-center justify-center text-zinc-500">
+              <div className="w-full h-full flex items-center justify-center text-zinc-500 cursor-pointer" onClick={() => setShowCamera(true)}>
                 <Video size={18} />
               </div>
             )}
@@ -171,6 +239,72 @@ export default function App() {
             >
               重新加载页面
             </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsPanel({ isStarted, onStart, permissionError }: { isStarted: boolean, onStart: () => void, permissionError: string | null }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 p-2.5 rounded-full backdrop-blur-md border border-zinc-700 shadow-lg transition-all group mb-2"
+        title="权限设置"
+      >
+        <Settings size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-12 bg-zinc-900/95 border border-zinc-700 rounded-2xl p-4 w-72 backdrop-blur-xl shadow-2xl animate-in fade-in slide-in-from-top-2 z-50">
+          <h3 className="text-white font-bold mb-4 flex items-center gap-2 border-b border-zinc-800 pb-2">
+            <Camera size={18} className="text-emerald-400" />
+            设备权限设置
+          </h3>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">摄像头与麦克风</span>
+              {isStarted && !permissionError ? (
+                <span className="text-emerald-400 font-medium flex items-center gap-1 bg-emerald-950/30 px-2 py-1 rounded-md border border-emerald-900/50">
+                  <Check size={12} /> 已授权
+                </span>
+              ) : (
+                <span className="text-zinc-500 font-medium bg-zinc-800/50 px-2 py-1 rounded-md border border-zinc-700">未授权</span>
+              )}
+            </div>
+
+            {!isStarted && (
+              <button 
+                onClick={() => {
+                  onStart();
+                }}
+                className="w-full bg-white text-black hover:bg-zinc-200 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Play size={14} fill="currentColor" />
+                开启摄像头权限
+              </button>
+            )}
+
+            {permissionError && (
+              <div className="bg-red-950/50 border border-red-900/50 p-3 rounded-xl text-xs text-red-200 leading-relaxed">
+                <div className="flex items-center gap-2 font-bold mb-1 text-red-400">
+                  <AlertCircle size={12} />
+                  <span>权限获取失败</span>
+                </div>
+                {permissionError === 'Permission denied' || permissionError.includes('denied')
+                  ? '浏览器拒绝了访问。请点击地址栏左侧的“设置”或“锁”图标，允许使用摄像头和麦克风，然后刷新页面。' 
+                  : permissionError}
+              </div>
+            )}
+            
+            <p className="text-[10px] text-zinc-500 leading-tight">
+              * 我们需要摄像头来识别手势，麦克风来响应声音。数据仅在本地处理。
+            </p>
           </div>
         </div>
       )}

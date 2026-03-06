@@ -10,7 +10,7 @@ export type HandState = {
   direction: { x: number; y: number; z: number }; // Pointing direction
 };
 
-export function useHandTracker(enabled: boolean = true) {
+export function useHandTracker(enabled: boolean = true, canvasRef?: React.RefObject<HTMLCanvasElement>) {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -76,6 +76,60 @@ export function useHandTracker(enabled: boolean = true) {
         if (video.currentTime > 0) {
           const results = handLandmarkerRef.current.detectForVideo(video, startTimeMs);
           
+          // Draw skeleton if canvas is provided
+          if (canvasRef?.current) {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              
+              // Mirror the context to match the mirrored video
+              ctx.save();
+              ctx.scale(-1, 1);
+              ctx.translate(-canvas.width, 0);
+
+              if (results.landmarks) {
+                for (const landmarks of results.landmarks) {
+                  // Draw connections
+                  const connections = [
+                    [0, 1, 2, 3, 4], // Thumb
+                    [0, 5, 6, 7, 8], // Index
+                    [0, 9, 10, 11, 12], // Middle
+                    [0, 13, 14, 15, 16], // Ring
+                    [0, 17, 18, 19, 20], // Pinky
+                    [5, 9, 13, 17, 0] // Palm base
+                  ];
+
+                  ctx.lineWidth = 2;
+                  ctx.strokeStyle = '#00ff00';
+                  
+                  for (const connection of connections) {
+                    ctx.beginPath();
+                    for (let i = 0; i < connection.length; i++) {
+                      const idx = connection[i];
+                      const x = landmarks[idx].x * canvas.width;
+                      const y = landmarks[idx].y * canvas.height;
+                      if (i === 0) ctx.moveTo(x, y);
+                      else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                  }
+
+                  // Draw points
+                  ctx.fillStyle = '#ff0000';
+                  for (const point of landmarks) {
+                    const x = point.x * canvas.width;
+                    const y = point.y * canvas.height;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                  }
+                }
+              }
+              ctx.restore();
+            }
+          }
+
           if (results.landmarks) {
             const currentHands = results.landmarks.map((landmarks, index) => {
               // Calculate center of palm and tips
